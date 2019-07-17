@@ -1,5 +1,6 @@
 package de.uniks.se19.team_g.project_rbsg.ingame.battlefield;
 
+import com.globalmentor.io.function.IOConsumer;
 import de.uniks.se19.team_g.project_rbsg.SceneManager;
 import de.uniks.se19.team_g.project_rbsg.ProjectRbsgFXApplication;
 import de.uniks.se19.team_g.project_rbsg.alert.AlertBuilder;
@@ -35,6 +36,7 @@ import java.beans.*;
 
 /**
  * @author  Keanu Stückrad
+ * @author  Georg Siebert
  */
 @Scope("prototype")
 @Controller
@@ -72,6 +74,12 @@ public class BattleFieldController implements RootController, IngameViewControll
     private final AlertBuilder alertBuilder;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    private final ListChangeListener<Unit> unitListListener = this::unitListChanged;
+    private final ChangeListener<Cell> unitCellListener = this::unitChangedPosition;
+    private final ChangeListener<Tile> hoveredTileListener = this::hoveredTileChanged;
+    private final ChangeListener<Tile> selectedTileListener = this::selectedTileChanged;
+    private final PropertyChangeListener highlightChangeListener = this::highlightingChanged;
 
     @Autowired
     public BattleFieldController(
@@ -121,13 +129,13 @@ public class BattleFieldController implements RootController, IngameViewControll
             for (Cell cell : cells)
             {
                 tileMap[cell.getY()][cell.getX()] = new Tile(cell);
-                tileMap[cell.getY()][cell.getX()].addListener(this::highlightingChanged);
+                tileMap[cell.getY()][cell.getX()].addListener(highlightChangeListener);
             }
 
             for (Unit unit : units)
             {
                 //Adds listener for units which are already in the list
-                unit.getPosition().addListener(this::unitChangedPosition);
+                unit.getPosition().addListener(unitCellListener);
             }
 
             initCanvas();
@@ -138,9 +146,9 @@ public class BattleFieldController implements RootController, IngameViewControll
         canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::canvasHandleMouseClicked);
 
         //Listener for unit list
-        units.addListener(this::unitListChanged);
-        selectedTile.addListener(this::selectedTileChanged);
-        hoveredTile.addListener(this::hoveredTileChanged);
+        units.addListener(unitListListener);
+        selectedTile.addListener(selectedTileListener);
+        hoveredTile.addListener(hoveredTileListener);
     }
 
     private void highlightingChanged(PropertyChangeEvent propertyChangeEvent)
@@ -173,19 +181,21 @@ public class BattleFieldController implements RootController, IngameViewControll
 
     private void unitListChanged(ListChangeListener.Change<? extends Unit> c)
     {
-        if (c.next()) {
+        while(c.next()) {
             logger.debug(c.toString());
             if (c.wasAdded()) {
-                for (int i = c.getFrom(); i < c.getTo(); i++)
+                for (Unit unit : c.getAddedSubList())
                 {
-                    units.get(c.getFrom()).getPosition().addListener(this::unitChangedPosition);
+                    units.get(c.getFrom()).getPosition().addListener(unitCellListener);
                 }
             }
 
             if(c.wasRemoved()) {
                 for (Unit unit : c.getRemoved())
                 {
-                    unit.getPosition().removeListener(this::unitChangedPosition);
+                    unit.getPosition().removeListener(unitCellListener);
+                    Tile tile = tileMap[unit.getPosition().get().getY()][unit.getPosition().get().getX()];
+                    tileDrawer.drawTile(tile);
                 }
             }
         }
@@ -281,19 +291,23 @@ public class BattleFieldController implements RootController, IngameViewControll
     @Override
     public void terminate()
     {
-        selectedTile.removeListener(this::selectedTileChanged);
-        hoveredTile.removeListener(this::hoveredTileChanged);
+
+        //Removing listeners
+        selectedTile.removeListener(selectedTileListener);
+        hoveredTile.removeListener(hoveredTileListener);
         for (Tile[] tileArray : tileMap)
         {
             for (Tile tile : tileArray)
             {
-                tile.removeListener(this::highlightingChanged);
+                tile.removeListener(highlightChangeListener);
             }
         }
 
         for (Unit unit : units)
         {
-            unit.getPosition().removeListener(this::unitChangedPosition);
+            unit.getPosition().removeListener(unitCellListener);
         }
+
+        units.removeListener(unitListListener);
     }
 }
