@@ -29,10 +29,10 @@ public class ServerConfig {
     public RestTemplate rbsgTemplate(
             @Nonnull UserProvider userProvider
     ) {
-        return doBuilldRbsgTemplate(userProvider);
+        return doBuildRbsgTemplate(userProvider);
     }
 
-    protected RestTemplate doBuilldRbsgTemplate(@Nonnull UserProvider userProvider) {
+    protected RestTemplate doBuildRbsgTemplate(@Nonnull UserProvider userProvider) {
         ApiClientErrorInterceptor apiClientErrorInterceptor = interceptorFactory.getObject();
         UserKeyInterceptor userKeyInterceptor = new UserKeyInterceptor(userProvider);
 
@@ -45,6 +45,6 @@ public class ServerConfig {
     }
 
     public RestTemplate buildTemplateForUser(User user) {
-        return doBuilldRbsgTemplate(new UserProvider().set(user));
+        return doBuildRbsgTemplate(new UserProvider().set(user));
     }
 }
